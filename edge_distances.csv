@@ -1,0 +1,47 @@
+station_1,station_2,line,future,color,style,km,miles
+Aljunied,Paya Lebar,East West Line,0,#1ea64b,solid,1.97,1.224
+Paya Lebar,Eunos,East West Line,0,#1ea64b,solid,1.208,0.751
+Eunos,Kembangan,East West Line,0,#1ea64b,solid,1.093,0.679
+Kembangan,Bedok,East West Line,0,#1ea64b,solid,1.322,0.821
+Bedok,Tanah Merah,East West Line,0,#1ea64b,solid,1.84,1.143
+Tanah Merah,Simei,East West Line,0,#1ea64b,solid,2.174,1.351
+Simei,Tampines,East West Line,0,#1ea64b,solid,1.848,1.148
+Tampines,Pasir Ris,East West Line,0,#1ea64b,solid,2.085,1.296
+Tanah Merah,Expo,East West Line Branch,0,#1ea64b,solid,2.681,1.666
+Expo,Changi Airport,East West Line Branch,0,#1ea64b,solid,3.796,2.359
+Serangoon,Bartley,Circle Line,0,#f39c12,solid,0.98,0.609
+Bartley,Tai Seng,Circle Line,0,#f39c12,solid,1.197,0.744
+Tai Seng,MacPherson,Circle Line,0,#f39c12,solid,1.037,0.644
+MacPherson,Paya Lebar,Circle Line,0,#f39c12,solid,1.031,0.641
+Paya Lebar,Dakota,Circle Line,0,#f39c12,solid,1.149,0.714
+Dakota,Mountbatten,Circle Line,0,#f39c12,solid,0.673,0.418
+Mountbatten,Stadium,Circle Line,0,#f39c12,solid,0.889,0.552
+Stadium,Nicoll Highway,Circle Line,0,#f39c12,solid,1.31,0.814
+Nicoll Highway,Promenade,Circle Line,0,#f39c12,solid,0.791,0.492
+Little India,Jalan Besar,Downtown Line,0,#1f5fbf,solid,0.725,0.45
+Jalan Besar,Bendemeer,Downtown Line,0,#1f5fbf,solid,1.164,0.723
+Bendemeer,Geylang Bahru,Downtown Line,0,#1f5fbf,solid,1.405,0.873
+Geylang Bahru,Mattar,Downtown Line,0,#1f5fbf,solid,1.393,0.866
+Mattar,MacPherson,Downtown Line,0,#1f5fbf,solid,0.776,0.482
+MacPherson,Ubi,Downtown Line,0,#1f5fbf,solid,1.144,0.711
+Ubi,Kaki Bukit,Downtown Line,0,#1f5fbf,solid,1.167,0.725
+Kaki Bukit,Bedok North,Downtown Line,0,#1f5fbf,solid,0.971,0.603
+Bedok North,Bedok Reservoir,Downtown Line,0,#1f5fbf,solid,1.681,1.045
+Bedok Reservoir,Tampines West,Downtown Line,0,#1f5fbf,solid,1.162,0.722
+Tampines West,Tampines,Downtown Line,0,#1f5fbf,solid,0.723,0.449
+Tampines,Tampines East,Downtown Line,0,#1f5fbf,solid,1.791,1.113
+Tampines East,Upper Changi,Downtown Line,0,#1f5fbf,solid,1.861,1.156
+Upper Changi,Expo,Downtown Line,0,#1f5fbf,solid,0.65,0.404
+Expo,Xilin,Downtown Line Extension,1,#1f5fbf,dashed,0.902,0.56
+Xilin,Sungei Bedok,Downtown Line Extension,1,#1f5fbf,dashed,0.793,0.493
+Little India,Farrer Park,North East Line,0,#9b59b6,solid,0.823,0.511
+Farrer Park,Boon Keng,North East Line,0,#9b59b6,solid,1.169,0.726
+Boon Keng,Potong Pasir,North East Line,0,#9b59b6,solid,1.56,0.969
+Potong Pasir,Woodleigh,North East Line,0,#9b59b6,solid,0.908,0.564
+Woodleigh,Serangoon,North East Line,0,#9b59b6,solid,1.126,0.7
+Serangoon,Kovan,North East Line,0,#9b59b6,solid,1.761,1.094
+Marine Parade,Marine Terrace,Thomson-East Coast Line,1,#8c5a2b,dashed,1.194,0.742
+Marine Terrace,Siglap,Thomson-East Coast Line,1,#8c5a2b,dashed,1.593,0.99
+Siglap,Bayshore,Thomson-East Coast Line,1,#8c5a2b,dashed,1.395,0.867
+Bayshore,Bedok South,Thomson-East Coast Line,1,#8c5a2b,dashed,0.945,0.587
+Bedok South,Sungei Bedok,Thomson-East Coast Line,1,#8c5a2b,dashed,1.148,0.713
