@@ -4,800 +4,648 @@ import networkx as nx
 import matplotlib.pyplot as plt
 
 # =====================================================================
-# SINGAPORE MRT NETWORK ANALYSIS AND VISUALIZATION SYSTEM
-# =====================================================================
-# Purpose:
-#   - Visualize the Singapore MRT (Mass Rapid Transit) network as a schematic map
-#   - Calculate distances between stations using geographic coordinates
-#   - Analyze network statistics (total and per-line distances)
-#   - Find shortest routes between any two stations using Dijkstra's algorithm
-#   - Highlight selected routes on interactive maps
-#
-# Allowed Libraries:
-#   - NumPy: Mathematical calculations (Haversine formula for distances)
-#   - Pandas: Data manipulation and CSV file input/output
-#   - NetworkX: Graph construction and shortest path computation
-#   - Matplotlib: Network visualization and map generation
-#
-# Core Features:
-#   1. Interactive distance unit selection (Kilometres or Miles)
-#   2. Network visualization with color-coded lines and stations
-#   3. Edge distance calculations (based on geographic coordinates)
-#   4. Network-wide statistics (total and average distances)
-#   5. Per-line distance statistics
-#   6. Shortest path calculation between any two stations (with highlighting)
-#   7. Professional schematic maps with legends and labels
-#
-# Data Sources (station_coordinates.csv):
-#   Station geographic coordinates (WGS84 latitude/longitude) were sourced from:
-#   [1] Land Transport Authority (LTA) Singapore - Train Station Locations (Geospatial)
-#       LTA DataMall Static Datasets:
-#       https://datamall.lta.gov.sg/content/datamall/en/static-data.html
-#       Dataset ZIP: https://datamall.lta.gov.sg/content/dam/datamall/datasets/Geospatial/TrainStation_Apr2025.zip
-#   [2] data.gov.sg - LTA MRT Station Exit (GeoJSON)
-#       Land Transport Authority (2019). LTA MRT Station Exit (GEOJSON) (2026) [Dataset].
-#       https://data.gov.sg/datasets/d_b39d3a0871985372d7e1637193335da5/view
-#   [3] Coordinates cross-verified via Google Maps (https://maps.google.com)
-#       and individual Wikipedia station articles.
+# SINGAPORE MRT NETWORK – COMP1844 COURSEWORK
+# Task 1: Visualise transport network graph with distance edge labels
+# Task 2: Extract total and average network distances
 # =====================================================================
 
-LINE_DEFINITIONS = {
-    "East West Line": {
-        "stations": [
-            "Aljunied", "Paya Lebar", "Eunos", "Kembangan",
-            "Bedok", "Tanah Merah", "Simei", "Tampines", "Pasir Ris"
-        ],
-        "future": 0,
-        "color": "#6FCF97",
-        "style": "solid"
-    },
-    "East West Line Branch": {
-        "stations": ["Tanah Merah", "Expo", "Changi Airport"],
-        "future": 0,
-        "color": "#6FCF97",
-        "style": "solid"
-    },
+# ─────────────────────────────────────────────
+# COLOUR PALETTE
+# ─────────────────────────────────────────────
+COLORS = {
+    "East West Line":         "#1E9E63",
+    "Changi Airport Line":    "#1E9E63",
+    "North South Line":       "#D62828",
+    "North East Line":        "#8E44AD",
+    "Circle Line":            "#F39C12",
+    "Downtown Line":          "#1D6FD6",
+}
+STYLES = {
+    "East West Line":         "solid",
+    "Changi Airport Line":    "solid",
+    "North South Line":       "solid",
+    "North East Line":        "solid",
+    "Circle Line":            "solid",
+    "Downtown Line":          "solid",
+}
+BACKGROUND = "#F4F4F4"
+
+# ─────────────────────────────────────────────
+# LINE DEFINITIONS
+# ─────────────────────────────────────────────
+MAP1_LINES = {
     "Circle Line": {
-        "stations": [
-            "Serangoon", "Bartley", "Tai Seng", "MacPherson",
-            "Paya Lebar", "Dakota", "Mountbatten", "Stadium",
-            "Nicoll Highway", "Promenade"
-        ],
-        "future": 0,
-        "color": "#F6C667",
-        "style": "solid"
+        "stations": ["Tai Seng", "MacPherson", "Paya Lebar", "Dakota"],
     },
     "Downtown Line": {
-        "stations": [
-            "Little India", "Jalan Besar", "Bendemeer", "Geylang Bahru",
-            "Mattar", "MacPherson", "Ubi", "Kaki Bukit",
-            "Bedok North", "Bedok Reservoir", "Tampines West",
-            "Tampines", "Tampines East", "Upper Changi", "Expo"
-        ],
-        "future": 0,
-        "color": "#6FA8DC",
-        "style": "solid"
+        "stations": ["Mattar", "MacPherson", "Ubi", "Kaki Bukit"],
     },
-    "Downtown Line Extension": {
-        "stations": ["Expo", "Xilin", "Sungei Bedok"],
-        "future": 1,
-        "color": "#6FA8DC",
-        "style": "dashed"
+    "East West Line": {
+        "stations": ["Aljunied", "Paya Lebar", "Eunos", "Kembangan"],
+    },
+}
+
+MAP2_LINES = {
+    "North South Line": {
+        "stations": [
+            "Canberra", "Yishun", "Khatib",
+            "Yio Chu Kang", "Ang Mo Kio", "Bishan",
+        ],
     },
     "North East Line": {
         "stations": [
             "Little India", "Farrer Park", "Boon Keng",
-            "Potong Pasir", "Woodleigh", "Serangoon", "Kovan"
+            "Potong Pasir", "Woodleigh", "Serangoon", "Kovan",
         ],
-        "future": 0,
-        "color": "#C39BD3",
-        "style": "solid"
     },
-    "Thomson-East Coast Line": {
+    "Circle Line": {
         "stations": [
-            "Marine Parade", "Marine Terrace", "Siglap",
-            "Bayshore", "Bedok South", "Sungei Bedok"
+            "Bishan", "Lorong Chuan", "Serangoon",
+            "Bartley", "Tai Seng", "MacPherson",
+            "Paya Lebar", "Dakota", "Mountbatten",
         ],
-        "future": 1,
-        "color": "#BCA18A",
-        "style": "dashed"
-    }
+    },
+    "Downtown Line": {
+        "stations": [
+            "Little India", "Jalan Besar", "Bendemeer",
+            "Geylang Bahru", "Mattar", "MacPherson",
+            "Ubi", "Kaki Bukit", "Bedok North",
+        ],
+    },
+    "East West Line": {
+        "stations": [
+            "Aljunied", "Paya Lebar", "Eunos",
+            "Kembangan", "Bedok", "Tanah Merah",
+            "Simei", "Tampines", "Pasir Ris",
+        ],
+    },
+    "Changi Airport Line": {
+        "stations": ["Tanah Merah", "Expo", "Changi Airport"],
+    },
 }
 
-# Hex color code (#FF9800 bright orange) used to highlight shortest path edges.
-# Provides high contrast and visibility for route emphasis on the network map.
-HIGHLIGHT_COLOR = "#FF9800"
+# ─────────────────────────────────────────────
+# MANUAL LABEL OFFSETS – Map 2
+# Absolute plot-unit offsets (no scale factor applied).
+# Positive x = right, positive y = up.
+# ─────────────────────────────────────────────
+LABEL_OFFSETS_MAP2 = {
+    # ── Interchange stations ─────────────────────────────────────
+    "MacPherson":    ( 0.00,  0.85),   # directly above
+    "Paya Lebar":    (-0.80, -0.55),   # left-below
+    "Serangoon":     ( 0.85,  0.25),   # right
+    "Bishan":        (-0.90,  0.10),   # left
+    "Little India":  (-0.85, -0.45),   # left-below
+    "Tanah Merah":   ( 0.85, -0.50),   # right-below
+
+    # ── Downtown Line central ────────────────────────────────────
+    "Mattar":        ( 0.80,  0.45),   # right-above
+    "Geylang Bahru": (-0.65,  0.70),   # left-above
+    "Bendemeer":     (-0.82,  0.10),   # left
+    "Jalan Besar":   (-0.82, -0.30),   # left-below
+    "Boon Keng":     (-0.80,  0.22),   # left
+    "Farrer Park":   (-0.85,  0.20),   # left
+    "Ubi":           ( 0.72,  0.28),   # right
+    "Kaki Bukit":    ( 0.72,  0.48),   # right-above
+    "Bedok North":   ( 0.78,  0.42),   # right-above
+
+    # ── Circle Line ──────────────────────────────────────────────
+    "Tai Seng":      ( 0.72,  0.38),   # right
+    "Bartley":       ( 0.72,  0.48),   # right-above
+    "Lorong Chuan":  ( 0.85,  0.25),   # right
+    "Dakota":        ( 0.72, -0.52),   # right-below
+    "Mountbatten":   ( 0.72, -0.52),   # right-below
+
+    # ── North East Line ──────────────────────────────────────────
+    "Potong Pasir":  (-0.78,  0.30),   # left
+    "Woodleigh":     (-0.78,  0.30),   # left
+    "Kovan":         ( 0.72,  0.30),   # right
+
+    # ── North South Line ─────────────────────────────────────────
+    "Ang Mo Kio":    (-0.78,  0.25),   # left
+    "Yio Chu Kang":  (-0.90,  0.25),   # left
+    "Khatib":        (-0.72,  0.25),   # left
+    "Yishun":        ( 0.68,  0.25),   # right
+    "Canberra":      (-0.68,  0.25),   # left
+
+    # ── East West Line ───────────────────────────────────────────
+    "Aljunied":      (-0.72,  0.25),   # left
+    "Eunos":         ( 0.10, -0.68),   # below
+    "Kembangan":     ( 0.72, -0.50),   # right-below
+    "Bedok":         ( 0.68, -0.50),   # right-below
+    "Simei":         ( 0.10,  0.68),   # above
+    "Tampines":      ( 0.10,  0.68),   # above
+    "Pasir Ris":     (-0.32,  0.68),   # above-left
+
+    # ── Changi Airport Line ──────────────────────────────────────
+    "Expo":          ( 0.68,  0.30),   # right
+    "Changi Airport":( 0.40,  0.68),   # above-right
+}
 
 
 # =====================================================================
-# CORE UTILITY FUNCTIONS
+# UTILITY FUNCTIONS
 # =====================================================================
 
+def load_coordinates(csv_path):
+    df = pd.read_csv(csv_path)
+    coord = df.set_index("station")[["latitude", "longitude"]].to_dict("index")
+    return coord
+
+
+def haversine_km(coord, s1, s2):
+    R = 6371.0088
+    lat1 = np.radians(coord[s1]["latitude"])
+    lon1 = np.radians(coord[s1]["longitude"])
+    lat2 = np.radians(coord[s2]["latitude"])
+    lon2 = np.radians(coord[s2]["longitude"])
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+    a = np.sin(dlat / 2) ** 2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon / 2) ** 2
+    return float(R * 2 * np.arctan2(np.sqrt(a), np.sqrt(1 - a)))
+
+
+def project_positions(coord, station_list, scale=18.0, min_dist=0.70):
+    """
+    Equirectangular projection.
+    scale    : longer axis of the bounding box in plot units.
+    min_dist : minimum spacing between any two nodes (plot units).
+    """
+    lats = np.array([coord[s]["latitude"]  for s in station_list])
+    lons = np.array([coord[s]["longitude"] for s in station_list])
+
+    lat_mid = np.radians(lats.mean())
+    x_raw   = np.radians(lons) * np.cos(lat_mid)
+    y_raw   = np.radians(lats)
+
+    s = scale / max(x_raw.max() - x_raw.min(),
+                    y_raw.max() - y_raw.min())
+
+    x_norm = (x_raw - x_raw.min()) * s
+    y_norm = (y_raw - y_raw.min()) * s
+
+    pos = {st: [float(x_norm[i]), float(y_norm[i])]
+           for i, st in enumerate(station_list)}
+
+    # Iterative minimum-spacing repulsion
+    for _ in range(300):
+        moved = False
+        keys = list(pos.keys())
+        for i in range(len(keys)):
+            for j in range(i + 1, len(keys)):
+                a, b = keys[i], keys[j]
+                dx = pos[b][0] - pos[a][0]
+                dy = pos[b][1] - pos[a][1]
+                d  = np.hypot(dx, dy)
+                if d < min_dist and d > 1e-9:
+                    push = (min_dist - d) / 2
+                    nx_ = dx / d * push
+                    ny_ = dy / d * push
+                    pos[a][0] -= nx_
+                    pos[a][1] -= ny_
+                    pos[b][0] += nx_
+                    pos[b][1] += ny_
+                    moved = True
+        if not moved:
+            break
+
+    return {st: (float(v[0]), float(v[1])) for st, v in pos.items()}
+
+
+def build_graph(line_definitions, coord):
+    G = nx.Graph()
+    for line_name, info in line_definitions.items():
+        for s1, s2 in zip(info["stations"], info["stations"][1:]):
+            km    = round(haversine_km(coord, s1, s2), 2)
+            miles = round(km * 0.621371, 2)
+            if not G.has_edge(s1, s2):
+                G.add_edge(s1, s2,
+                           km=km, miles=miles,
+                           color=COLORS[line_name],
+                           style=STYLES[line_name],
+                           line=line_name)
+    return G
+
+
+def auto_label_positions(G, positions, offset=0.45):
+    """
+    Place each label opposite to the mean neighbour direction.
+    Used for Map 1.
+    """
+    label_pos = {}
+    for node in G.nodes():
+        nx_pos, ny_pos = positions[node]
+        neighbors = list(G.neighbors(node))
+        if not neighbors:
+            label_pos[node] = (nx_pos, ny_pos - offset)
+            continue
+        vx, vy = 0.0, 0.0
+        for nb in neighbors:
+            dx = positions[nb][0] - nx_pos
+            dy = positions[nb][1] - ny_pos
+            length = np.hypot(dx, dy) or 1.0
+            vx += dx / length
+            vy += dy / length
+        mag = np.hypot(vx, vy) or 1.0
+        label_pos[node] = (nx_pos - (vx / mag) * offset,
+                           ny_pos - (vy / mag) * offset)
+    return label_pos
+
+
+def smart_label_positions(G, positions, label_offsets=None, offset=0.72):
+    """
+    Map 2 label placement.
+    Uses manual offsets (absolute plot units) for listed stations;
+    auto-direction fallback for the rest.
+    """
+    label_pos = {}
+    for node in G.nodes():
+        nx_pos, ny_pos = positions[node]
+        if label_offsets and node in label_offsets:
+            dx, dy = label_offsets[node]
+            label_pos[node] = (nx_pos + dx, ny_pos + dy)
+        else:
+            neighbors = list(G.neighbors(node))
+            if not neighbors:
+                label_pos[node] = (nx_pos, ny_pos - offset)
+                continue
+            vx, vy = 0.0, 0.0
+            for nb in neighbors:
+                dx2 = positions[nb][0] - nx_pos
+                dy2 = positions[nb][1] - ny_pos
+                length = np.hypot(dx2, dy2) or 1.0
+                vx += dx2 / length
+                vy += dy2 / length
+            mag = np.hypot(vx, vy) or 1.0
+            label_pos[node] = (nx_pos - (vx / mag) * offset,
+                               ny_pos - (vy / mag) * offset)
+    return label_pos
+
+
+# =====================================================================
+# TASK 2 – NETWORK STATISTICS
+# =====================================================================
+
+def task2_statistics(G):
+    km_values    = [d["km"]    for _, _, d in G.edges(data=True)]
+    miles_values = [d["miles"] for _, _, d in G.edges(data=True)]
+
+    total_km    = round(float(np.sum(km_values)),    2)
+    total_miles = round(float(np.sum(miles_values)), 2)
+    avg_km      = round(float(np.mean(km_values)),   2)
+    avg_miles   = round(float(np.mean(miles_values)),2)
+
+    stats = pd.DataFrame({
+        "Metric":  ["Total network length", "Average distance per edge"],
+        "km":      [total_km,   avg_km],
+        "miles":   [total_miles, avg_miles],
+    })
+    return stats
+
+
+# =====================================================================
+# MAP 1 – DRAWING
+# =====================================================================
+
+def draw_edge_labels_map1(ax, G, positions, distance_attr, unit_text):
+    """Edge distance labels for Map 1."""
+    for s1, s2, data in G.edges(data=True):
+        x1, y1 = positions[s1]
+        x2, y2 = positions[s2]
+        mx, my = (x1 + x2) / 2, (y1 + y2) / 2
+        dx, dy = x2 - x1, y2 - y1
+        length = np.hypot(dx, dy) or 1.0
+        px, py = -dy / length, dx / length
+        ax.text(
+            mx + px * 0.22,
+            my + py * 0.22,
+            f"{data[distance_attr]:.1f} {unit_text}",
+            fontsize=8.5,
+            ha="center", va="center",
+            color="#333333",
+            bbox=dict(boxstyle="round,pad=0.12",
+                      fc=BACKGROUND, ec="none", alpha=0.92),
+            zorder=5,
+        )
+
+
+def draw_map(G, positions, line_definitions, distance_attr,
+             unit_text, title, output_path):
+    """Map 1: straight edges, compact layout."""
+    label_positions = auto_label_positions(G, positions, offset=0.45)
+
+    # Auto-size figure to data extent
+    all_x = [positions[n][0] for n in G.nodes()]
+    all_y = [positions[n][1] for n in G.nodes()]
+    x_span = max(all_x) - min(all_x)
+    y_span = max(all_y) - min(all_y)
+    base_h = 8.0
+    fig_w  = base_h * (x_span / y_span) + 2.0
+    fig_h  = base_h + 1.5
+
+    fig, ax = plt.subplots(figsize=(fig_w, fig_h), facecolor=BACKGROUND)
+    ax.set_facecolor(BACKGROUND)
+
+    # ── Edges ───────────────────────────────────────────────────
+    for line_name, info in line_definitions.items():
+        edgelist = [
+            (s1, s2)
+            for s1, s2 in zip(info["stations"], info["stations"][1:])
+            if G.has_edge(s1, s2)
+        ]
+        nx.draw_networkx_edges(
+            G, positions, edgelist=edgelist,
+            edge_color=COLORS[line_name],
+            style=STYLES[line_name],
+            width=4.5, ax=ax,
+        )
+
+    draw_edge_labels_map1(ax, G, positions, distance_attr, unit_text)
+
+    # ── Nodes ────────────────────────────────────────────────────
+    node_line_sets = {n: set() for n in G.nodes()}
+    for u, v, d in G.edges(data=True):
+        node_line_sets[u].add(d["line"])
+        node_line_sets[v].add(d["line"])
+
+    for node in G.nodes():
+        interchange = len(node_line_sets[node]) > 1
+        if interchange:
+            nc, ns, ec, lw = "#DDDDDD", 480, "#666666", 2.2
+        else:
+            nc = list(G.edges(node, data=True))[0][2]["color"]
+            ns, ec, lw = 280, "white", 1.8
+        nx.draw_networkx_nodes(
+            G, positions, nodelist=[node],
+            node_color=nc, node_size=ns,
+            edgecolors=ec, linewidths=lw, ax=ax,
+        )
+
+    # ── Labels ───────────────────────────────────────────────────
+    nx.draw_networkx_labels(
+        G, label_positions,
+        font_size=9.5, font_weight="bold",
+        font_color="#1A1A1A", ax=ax,
+    )
+
+    # ── Legend ───────────────────────────────────────────────────
+    seen = set()
+    for line_name in line_definitions:
+        if line_name not in seen:
+            ax.plot([], [],
+                    color=COLORS[line_name],
+                    linestyle=STYLES[line_name],
+                    linewidth=3, label=line_name)
+            seen.add(line_name)
+
+    ax.legend(
+        loc="lower right", frameon=True,
+        facecolor="white", edgecolor="#888888",
+        fontsize=9.5, title="Key", title_fontsize=11,
+    )
+
+    # ── Tight bounds ─────────────────────────────────────────────
+    margin = 0.9
+    ax.set_xlim(min(all_x) - margin, max(all_x) + margin)
+    ax.set_ylim(min(all_y) - margin, max(all_y) + margin)
+
+    ax.set_title(title, fontsize=14, fontweight="bold", pad=12)
+    ax.set_aspect("equal")
+    ax.axis("off")
+    plt.tight_layout(pad=1.2)
+    plt.savefig(output_path, dpi=200, bbox_inches="tight")
+    plt.show()
+    plt.close()
+    print(f"Saved: {output_path}")
+
+
+# =====================================================================
+# MAP 2 – DRAWING (spline curves + smart labels)
+# =====================================================================
+
+def catmull_rom_chain(points, n_seg=80):
+    """Smooth Catmull-Rom spline. Pure numpy."""
+    if len(points) < 2:
+        return np.array([p[0] for p in points]), np.array([p[1] for p in points])
+    if len(points) == 2:
+        return (np.linspace(points[0][0], points[1][0], n_seg),
+                np.linspace(points[0][1], points[1][1], n_seg))
+
+    pts = np.array([points[0]] + list(points) + [points[-1]], dtype=float)
+    all_x, all_y = [], []
+    for i in range(1, len(pts) - 2):
+        p0, p1, p2, p3 = pts[i-1], pts[i], pts[i+1], pts[i+2]
+        include_end = (i == len(pts) - 3)
+        t  = np.linspace(0, 1, n_seg, endpoint=include_end)
+        t2 = t * t
+        t3 = t2 * t
+        x = 0.5 * ((2*p1[0]) + (-p0[0]+p2[0])*t +
+                    (2*p0[0]-5*p1[0]+4*p2[0]-p3[0])*t2 +
+                    (-p0[0]+3*p1[0]-3*p2[0]+p3[0])*t3)
+        y = 0.5 * ((2*p1[1]) + (-p0[1]+p2[1])*t +
+                    (2*p0[1]-5*p1[1]+4*p2[1]-p3[1])*t2 +
+                    (-p0[1]+3*p1[1]-3*p2[1]+p3[1])*t3)
+        all_x.extend(x.tolist())
+        all_y.extend(y.tolist())
+    return np.array(all_x), np.array(all_y)
+
+
+def draw_distance_labels_map2(ax, G, positions, distance_attr, unit_text):
+    """Edge distance labels for Map 2 — perpendicular offset."""
+    for s1, s2, data in G.edges(data=True):
+        x1, y1 = positions[s1]
+        x2, y2 = positions[s2]
+        mx, my = (x1 + x2) / 2, (y1 + y2) / 2
+        dx, dy = x2 - x1, y2 - y1
+        length = np.hypot(dx, dy) or 1.0
+        px, py = -dy / length, dx / length
+        ax.text(
+            mx + px * 0.28,
+            my + py * 0.28,
+            f"{data[distance_attr]:.1f} {unit_text}",
+            fontsize=7,
+            ha="center", va="center",
+            color="#444444",
+            bbox=dict(boxstyle="round,pad=0.09",
+                      fc=BACKGROUND, ec="none", alpha=0.90),
+            zorder=5,
+        )
+
+
+def draw_map2(G, positions, line_definitions, distance_attr,
+              unit_text, title, output_path, label_offsets=None):
+    """Map 2: Catmull-Rom curves, MRT-style nodes, smart labels."""
+
+    fig, ax = plt.subplots(figsize=(26, 20), facecolor=BACKGROUND)
+    ax.set_facecolor(BACKGROUND)
+
+    # ── 1. Spline curves ────────────────────────────────────────
+    draw_order = sorted(
+        line_definitions.keys(),
+        key=lambda ln: (1 if STYLES[ln] == "dashed" else 0)
+    )
+    for line_name in draw_order:
+        info  = line_definitions[line_name]
+        pts   = [positions[s] for s in info["stations"]]
+        xs, ys = catmull_rom_chain(pts, n_seg=80)
+        color = COLORS[line_name]
+
+        if line_name == "Changi Airport Line":
+            ax.plot(xs, ys, color="white",  linewidth=12.0,
+                    solid_capstyle="round", zorder=2)
+            ax.plot(xs, ys, color=color,    linewidth=9.0,
+                    solid_capstyle="round", zorder=3)
+            ax.plot(xs, ys, color="white",  linewidth=4.0,
+                    solid_capstyle="round", zorder=4)
+        else:
+            ax.plot(xs, ys, color="white",  linewidth=9.0,
+                    solid_capstyle="round", zorder=2)
+            ax.plot(xs, ys, color=color,    linewidth=5.5,
+                    solid_capstyle="round", zorder=3)
+
+    # ── 2. Edge distance labels ──────────────────────────────────
+    draw_distance_labels_map2(ax, G, positions, distance_attr, unit_text)
+
+    # ── 3. Nodes ─────────────────────────────────────────────────
+    node_line_sets = {n: set() for n in G.nodes()}
+    for u, v, d in G.edges(data=True):
+        node_line_sets[u].add(d["line"])
+        node_line_sets[v].add(d["line"])
+
+    for node in G.nodes():
+        x, y = positions[node]
+        is_interchange = len(node_line_sets[node]) > 1
+        if is_interchange:
+            ax.plot(x, y, "o", markersize=16, color="white",
+                    markeredgecolor="#555555", markeredgewidth=2.5, zorder=6)
+        else:
+            line_name  = list(node_line_sets[node])[0]
+            node_color = COLORS[line_name]
+            ax.plot(x, y, "o", markersize=10, color=node_color,
+                    markeredgecolor="white", markeredgewidth=2.0, zorder=6)
+
+    # ── 4. Station labels ────────────────────────────────────────
+    lp = smart_label_positions(G, positions,
+                                label_offsets=label_offsets,
+                                offset=0.72)
+    for node in G.nodes():
+        ax.text(lp[node][0], lp[node][1], node,
+                fontsize=8.5, fontweight="bold",
+                color="#1A1A1A", ha="center", va="center",
+                zorder=7)
+
+    # ── 5. Legend ────────────────────────────────────────────────
+    from matplotlib.lines import Line2D
+    from matplotlib.legend_handler import HandlerTuple
+
+    seen, legend_handles, legend_labels = set(), [], []
+    for line_name in line_definitions:
+        if line_name in seen:
+            continue
+        if line_name == "Changi Airport Line":
+            h1 = Line2D([0], [0], color=COLORS[line_name], linewidth=9)
+            h2 = Line2D([0], [0], color="white",            linewidth=3.5)
+            legend_handles.append((h1, h2))
+            legend_labels.append("Changi Airport Line")
+            seen.add(line_name)
+            continue
+        h, = ax.plot([], [], color=COLORS[line_name],
+                     linestyle="-", linewidth=3)
+        legend_handles.append(h)
+        legend_labels.append(line_name)
+        seen.add(line_name)
+
+    h_ic, = ax.plot([], [], "o", color="white",
+                    markeredgecolor="#555555", markeredgewidth=2,
+                    markersize=10, linestyle="None")
+    legend_handles.append(h_ic)
+    legend_labels.append("Interchange Station")
+
+    ax.legend(
+        handles=legend_handles, labels=legend_labels,
+        loc="lower right", frameon=True,
+        facecolor="white", edgecolor="#AAAAAA",
+        fontsize=9, title="Key", title_fontsize=11,
+        labelspacing=0.6,
+        handler_map={tuple: HandlerTuple()}
+    )
+
+    # ── 6. Bounds & layout ───────────────────────────────────────
+    all_x = [p[0] for p in positions.values()]
+    all_y = [p[1] for p in positions.values()]
+    margin = 1.8
+    ax.set_xlim(min(all_x) - margin, max(all_x) + margin)
+    ax.set_ylim(min(all_y) - margin, max(all_y) + margin)
+
+    ax.set_title(title, fontsize=15, fontweight="bold", pad=14)
+    ax.set_aspect("equal")
+    ax.axis("off")
+    plt.subplots_adjust(top=0.95, bottom=0.02, left=0.02, right=0.98)
+    plt.savefig(output_path, dpi=200, bbox_inches="tight")
+    plt.show()
+    plt.close()
+    print(f"Saved: {output_path}")
+
+
+# =====================================================================
+# USER INPUT
+# =====================================================================
 
 def get_distance_choice():
-    """
-    Prompts user to select preferred distance unit for display and calculations.
-    Returns both the graph attribute key and the display label.
-    
-    Returns:
-        tuple: (distance_attr, unit_text) where:
-               - distance_attr (str): 'km' or 'miles' (used as graph edge attribute key)
-               - unit_text (str): 'km' or 'mi' (used for display on maps and output)
-    """
-    print("Singapore MRT Schematic Network")
-    print("Choose the distance unit to display and use for route calculation:")
-    print("1 - Kilometres")
-    print("2 - Miles")
-
+    print("\nSingapore MRT Schematic Network")
+    print("Choose the distance unit to display on the graph:")
+    print("  1 - Kilometres")
+    print("  2 - Miles")
     while True:
         choice = input("Enter 1 or 2: ").strip()
         if choice == "1":
             return "km", "km"
         if choice == "2":
             return "miles", "mi"
-        print("Invalid input. Please enter 1 for kilometres or 2 for miles.")
-
-
-def haversine_km(lat1, lon1, lat2, lon2):
-    """
-    Calculates great-circle distance between two geographic points using the Haversine formula.
-    This formula is accurate for Earth as a sphere and accounts for curvature.
-    
-    Args:
-        lat1 (float): Latitude of first point in degrees (range: -90 to 90)
-        lon1 (float): Longitude of first point in degrees (range: -180 to 180)
-        lat2 (float): Latitude of second point in degrees
-        lon2 (float): Longitude of second point in degrees
-        
-    Returns:
-        float: Distance in kilometres between the two coordinates
-    """
-    earth_radius_km = 6371.0088  # Earth's mean radius in kilometres
-    # Convert degrees to radians
-    lat1, lon1, lat2, lon2 = np.radians([lat1, lon1, lat2, lon2])
-    # Calculate differences in radians
-    dlat = lat2 - lat1
-    dlon = lon2 - lon1
-    # Apply Haversine formula
-    a = np.sin(dlat / 2) ** 2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon / 2) ** 2
-    return float(earth_radius_km * 2 * np.arctan2(np.sqrt(a), np.sqrt(1 - a)))
-
-
-def build_edge_dataframe(station_df):
-    """
-    Creates a comprehensive edge dataframe from station coordinates and line definitions.
-    Calculates distances between consecutive stations on each MRT line using geographic coordinates.
-    
-    Args:
-        station_df (pd.DataFrame): Input dataframe loaded from station_coordinates.csv.
-                                   Coordinates sourced from LTA DataMall (WGS84).
-                                   Columns:
-                                   - 'station' (str): Station name
-                                   - 'latitude' (float): Geographic latitude (WGS84)
-                                   - 'longitude' (float): Geographic longitude (WGS84)
-        
-    Returns:
-        pd.DataFrame: Dataframe with columns:
-                     - station_1, station_2: Consecutive stations on a line
-                     - line: MRT line name
-                     - future: Binary flag (0/1)
-                     - color: Hex color code
-                     - style: Line style (solid/dashed)
-                     - km: Distance in kilometres
-                     - miles: Distance in miles
-    """
-    station_lookup = station_df.set_index("station")[["latitude", "longitude"]].to_dict("index")
-
-    rows = []
-    # Process each MRT line and calculate distances between consecutive stations
-    for line_name, info in LINE_DEFINITIONS.items():
-        stations = info["stations"]
-        # Iterate through consecutive station pairs on the line
-        for station_1, station_2 in zip(stations, stations[1:]):
-            lat1 = station_lookup[station_1]["latitude"]
-            lon1 = station_lookup[station_1]["longitude"]
-            lat2 = station_lookup[station_2]["latitude"]
-            lon2 = station_lookup[station_2]["longitude"]
-            # Calculate distance using Haversine formula
-            km = round(haversine_km(lat1, lon1, lat2, lon2), 3)
-            miles = round(km * 0.621371, 3)  # Convert to miles
-            rows.append({
-                "station_1": station_1,
-                "station_2": station_2,
-                "line": line_name,
-                "future": info["future"],
-                "color": info["color"],
-                "style": info["style"],
-                "km": km,
-                "miles": miles
-            })
-
-    return pd.DataFrame(rows)
-
-
-def build_graph(edge_df):
-    """
-    Constructs an undirected NetworkX graph from the edge dataframe.
-    Each edge stores line metadata and both distance measurements for path calculations.
-    
-    Args:
-        edge_df (pd.DataFrame): Edge dataframe from build_edge_dataframe()
-        
-    Returns:
-        nx.Graph: Undirected graph where:
-                 - Nodes: Station names
-                 - Edges: Connect consecutive stations with metadata attributes:
-                   - 'line': MRT line name
-                   - 'future': Operational status (0=current, 1=future)
-                   - 'color': Display color
-                   - 'style': Line style (solid/dashed)
-                   - 'km': Distance in kilometres (used as weight)
-                   - 'miles': Distance in miles (used as weight)
-    """
-    graph = nx.Graph()
-    # Add edges with all metadata from the dataframe
-    for _, row in edge_df.iterrows():
-        graph.add_edge(
-            row["station_1"],
-            row["station_2"],
-            line=row["line"],
-            future=int(row["future"]),
-            color=row["color"],
-            style=row["style"],
-            km=float(row["km"]),
-            miles=float(row["miles"])
-        )
-    return graph
-
-
-def build_positions():
-    """
-    Defines the X-Y coordinates (schematic positions) for each station on the map.
-    These are NOT actual geographic coordinates but rather an optimized schematic layout
-    where lines are drawn clearly without overlapping. Coordinates can be manually tuned
-    for better visual clarity and label placement.
-    
-    Returns:
-        dict: Mapping of station names (str) to (x, y) coordinate tuples (float, float)
-    """
-    return {
-        "Mattar": (0.0, 0.0),
-        "MacPherson": (2.2, 2.0),
-        "Ubi": (4.4, 4.0),
-        "Kaki Bukit": (6.6, 6.0),
-        "Aljunied": (-3.0, -2.0),
-        "Paya Lebar": (2.2, -2.0),
-        "Eunos": (4.4, 0.0),
-        "Kembangan": (6.6, 2.0),
-        "Tai Seng": (0.0, 4.0),
-        "Dakota": (2.2, -4.4),
-        "Little India": (-11.8, -2.0),
-        "Jalan Besar": (-9.4, -2.0),
-        "Bendemeer": (-7.0, -2.0),
-        "Geylang Bahru": (-3.8, -0.9),
-        "Bedok North": (9.4, 6.0),
-        "Bedok Reservoir": (12.2, 6.0),
-        "Tampines West": (15.0, 6.0),
-        "Tampines": (18.0, 4.0),
-        "Tampines East": (18.0, 1.6),
-        "Upper Changi": (18.0, -0.8),
-        "Expo": (18.0, -3.2),
-        "Xilin": (17.2, -5.8),
-        "Sungei Bedok": (16.0, -8.9),
-        "Bedok": (9.4, 2.0),
-        "Tanah Merah": (12.2, 2.0),
-        "Simei": (15.0, 2.0),
-        "Pasir Ris": (18.0, 7.8),
-        "Changi Airport": (21.0, -3.2),
-        "Bartley": (-1.8, 5.4),
-        "Serangoon": (-4.0, 7.2),
-        "Mountbatten": (3.3, -6.3),
-        "Stadium": (4.6, -7.9),
-        "Nicoll Highway": (6.1, -9.5),
-        "Promenade": (8.0, -10.9),
-        "Farrer Park": (-9.9, -0.1),
-        "Boon Keng": (-7.8, 1.9),
-        "Potong Pasir": (-5.8, 3.9),
-        "Woodleigh": (-4.7, 5.8),
-        "Kovan": (-1.8, 8.7),
-        "Marine Parade": (11.2, -12.4),
-        "Marine Terrace": (13.7, -11.1),
-        "Siglap": (15.4, -9.6),
-        "Bayshore": (16.8, -8.0),
-        "Bedok South": (18.3, -6.6)
-    }
-
-
-def build_label_positions():
-    """
-    Defines the X-Y offset coordinates for station name labels.
-    Labels are positioned slightly offset from node positions to avoid overlapping
-    with network edges and maintain readability on the schematic map.
-    
-    Returns:
-        dict: Mapping of station names (str) to label (x, y) coordinate tuples (float, float)
-    """
-    return {
-        "Mattar": (0.0, -0.68),
-        "MacPherson": (2.2, 2.78),
-        "Ubi": (4.4, 4.98),
-        "Kaki Bukit": (6.6, 7.20),
-        "Aljunied": (-4.15, -2.22),
-        "Paya Lebar": (2.2, -2.90),
-        "Eunos": (4.4, 0.48),
-        "Kembangan": (6.6, 2.72),
-        "Tai Seng": (-1.0, 5.00),
-        "Dakota": (2.2, -5.10),
-        "Little India": (-13.3, -2.24),
-        "Jalan Besar": (-10.1, -2.88),
-        "Bendemeer": (-7.2, -2.88),
-        "Geylang Bahru": (-5.0, -1.26),
-        "Bedok": (9.4, 2.72),
-        "Tanah Merah": (12.2, 2.72),
-        "Simei": (15.0, 2.72),
-        "Tampines": (18.0, 4.98),
-        "Pasir Ris": (18.0, 8.76),
-        "Bedok North": (9.4, 7.20),
-        "Bedok Reservoir": (12.2, 7.20),
-        "Tampines West": (15.0, 7.20),
-        "Tampines East": (18.0, 2.00),
-        "Upper Changi": (18.0, -0.48),
-        "Expo": (18.0, -4.10),
-        "Changi Airport": (22.95, -3.25),
-        "Xilin": (18.55, -5.32),
-        "Sungei Bedok": (14.8, -10.05),
-        "Bedok South": (19.55, -6.60),
-        "Bartley": (-2.7, 6.08),
-        "Serangoon": (-5.2, 7.90),
-        "Mountbatten": (3.5, -6.70),
-        "Stadium": (4.9, -8.40),
-        "Nicoll Highway": (5.8, -10.10),
-        "Promenade": (8.9, -11.80),
-        "Farrer Park": (-10.95, 0.28),
-        "Boon Keng": (-8.55, 2.28),
-        "Potong Pasir": (-6.35, 4.30),
-        "Woodleigh": (-5.15, 6.36),
-        "Kovan": (-2.55, 9.68),
-        "Marine Parade": (11.2, -12.90),
-        "Marine Terrace": (14.4, -11.48),
-        "Siglap": (16.1, -9.86),
-        "Bayshore": (17.75, -8.00)
-    }
-
-
-def draw_network(graph, edge_df, distance_attr, output_path, highlighted_path=None):
-    """
-    Renders the MRT network as a professional schematic map with all visual elements.
-    Supports optional highlighting of a specific route through the network.
-    
-    Args:
-        graph (nx.Graph): NetworkX graph from build_graph() with station nodes and edges
-        edge_df (pd.DataFrame): Edge dataframe containing line and distance information
-        distance_attr (str): Distance attribute key to display on edges ('km' or 'miles')
-        output_path (str): File path where the PNG map will be saved
-        highlighted_path (list, optional): List of station names forming the shortest path.
-                                          If provided, edges in this path are drawn in
-                                          orange with wider lines for emphasis.
-        
-    Features:
-        - Distinct colors for each MRT line
-        - Interchange stations (multiple lines) vs single-line stations styled differently
-        - Distance labels on each edge
-        - Professional legend showing all lines
-        - Highlighted edges for shortest route (if provided)
-        - Yellow node highlighting for stations in the shortest path
-        - High-resolution output (300 DPI)
-    """
-    pos = build_positions()
-    label_pos = build_label_positions()
-
-    # Create figure with main network area and side legend panel
-    fig = plt.figure(figsize=(22, 14), facecolor="#eeeeee")
-    ax = fig.add_axes([0.04, 0.07, 0.76, 0.86])
-    ax.set_facecolor("#eeeeee")
-
-    # Create legend/key panel on the right side of the map
-    key_ax = fig.add_axes([0.81, 0.09, 0.17, 0.22])
-    key_ax.set_facecolor("white")
-    for spine in key_ax.spines.values():
-        spine.set_edgecolor("#444444")
-        spine.set_linewidth(1.0)
-    key_ax.set_xticks([])
-    key_ax.set_yticks([])
-    key_ax.set_xlim(0, 1)
-    key_ax.set_ylim(0, 1)
-
-    fig.text(
-        0.04, 0.965, "Singapore MRT Schematic Network",
-        fontsize=15, fontweight="bold", color="#222222", ha="left", va="top"
-    )
-    fig.text(
-        0.04, 0.944, "Task 1 network map with selectable distance labels",
-        fontsize=9.5, color="#555555", ha="left", va="top"
-    )
-    fig.text(
-        0.04, 0.928, f"Displayed edge attribute: {distance_attr}",
-        fontsize=9.5, color="#555555", ha="left", va="top"
-    )
-
-    # Extract unique MRT lines with their visual properties
-    unique_lines = edge_df[["line", "color", "style"]].drop_duplicates()
-
-    # Build set of edges that are part of the shortest path for highlighting (Feature #2)
-    highlighted_edge_set = set()
-    if highlighted_path is not None and len(highlighted_path) >= 2:
-        # Convert path sequence to sorted edge tuples for comparison
-        highlighted_edge_set = {
-            tuple(sorted((u, v))) for u, v in zip(highlighted_path[:-1], highlighted_path[1:])
-        }
-
-    # Draw all edges line by line with their respective colors and styles
-    for _, line_row in unique_lines.iterrows():
-        line_name = line_row["line"]
-        # Get all edges belonging to this MRT line
-        all_edges = [
-            (u, v) for u, v, d in graph.edges(data=True)
-            if d["line"] == line_name
-        ]
-
-        # Separate edges into normal (non-highlighted) and bright (highlighted) categories
-        normal_edges = []
-        bright_edges = []
-
-        for u, v in all_edges:
-            edge_key = tuple(sorted((u, v)))
-            if edge_key in highlighted_edge_set:
-                bright_edges.append((u, v))
-            else:
-                normal_edges.append((u, v))
-
-        # Adjust line width based on operational status (solid=thicker, dashed=thinner)
-        base_width = 4.8 if line_row["style"] == "solid" else 3.3
-
-        # Draw normal edges with reduced opacity
-        nx.draw_networkx_edges(
-            graph,
-            pos,
-            edgelist=normal_edges,
-            edge_color=line_row["color"],
-            width=base_width - 0.5,
-            style=line_row["style"],
-            alpha=0.6,
-            ax=ax
-        )
-
-        # Draw highlighted edges (shortest path) with increased width and full opacity for emphasis
-        nx.draw_networkx_edges(
-            graph,
-            pos,
-            edgelist=bright_edges,
-            edge_color=line_row["color"],
-            width=base_width + 3.5,
-            style="solid",
-            alpha=1.0,
-            ax=ax
-        )
-
-    # Create and display distance labels on all edges
-    edge_labels = {}
-    suffix = "km" if distance_attr == "km" else "mi"
-    for u, v, d in graph.edges(data=True):
-        edge_labels[(u, v)] = f"{round(d[distance_attr], 1)}{suffix}"
-
-    nx.draw_networkx_edge_labels(
-        graph,
-        pos,
-        edge_labels=edge_labels,
-        font_size=6.6,
-        font_color="#444444",
-        bbox=dict(boxstyle="round,pad=0.08", fc="white", ec="none", alpha=0.75),
-        rotate=False,
-        ax=ax
-    )
-
-    # Identify interchange stations (multiple lines) vs single-line stations for distinct styling
-    node_lines = {node: set() for node in graph.nodes()}
-    for u, v, d in graph.edges(data=True):
-        node_lines[u].add(d["line"])
-        node_lines[v].add(d["line"])
-
-    # Separate nodes by number of connected lines
-    interchange_nodes = [node for node, lines in node_lines.items() if len(lines) > 1]
-    single_nodes = [node for node, lines in node_lines.items() if len(lines) == 1]
-
-    # Draw interchange stations in neutral gray color (larger size for visibility)
-    nx.draw_networkx_nodes(
-        graph,
-        pos,
-        nodelist=interchange_nodes,
-        node_color="#f3f3f3",
-        node_size=400,
-        edgecolors="#9a9a9a",
-        linewidths=1.8,
-        ax=ax
-    )
-
-    # Draw single-line stations in their respective line color for visual consistency
-    for node in single_nodes:
-        line_name = list(node_lines[node])[0]
-        line_color = unique_lines.loc[unique_lines["line"] == line_name, "color"].iloc[0]
-        nx.draw_networkx_nodes(
-            graph,
-            pos,
-            nodelist=[node],
-            node_color=line_color,
-            node_size=240,
-            edgecolors="white",
-            linewidths=1.6,
-            ax=ax
-        )
-
-    # Highlight stations along shortest path route with distinct yellow color (Feature #2)
-    if highlighted_path is not None and len(highlighted_path) >= 2:
-        nx.draw_networkx_nodes(
-            graph,
-            pos,
-            nodelist=highlighted_path,
-            node_color="#FFE599",  # Bright yellow for visibility
-            node_size=320,
-            edgecolors=HIGHLIGHT_COLOR,  # Orange border for emphasis
-            linewidths=2.2,
-            ax=ax
-        )
-
-    nx.draw_networkx_labels(
-        graph,
-        label_pos,
-        font_size=7.1,
-        font_color="#111111",
-        font_weight="normal",
-        ax=ax
-    )
-
-    # Add legend title
-    key_ax.text(0.08, 0.94, "Key", fontsize=10.0, fontweight="bold", color="#222222", ha="left", va="top")
-
-    # Build legend entries showing all available MRT lines with colors and styles
-    legend_items = [
-    (line_name, info["color"], info["style"])
-    for line_name, info in LINE_DEFINITIONS.items()
-    ]
-
-    # Draw legend items (colored lines with labels)
-    for i, (name, color, style) in enumerate(legend_items):
-        y = 0.84 - i * 0.10
-        key_ax.plot([0.08, 0.36], [y, y], color=color, linewidth=2.8, linestyle=style)
-        key_ax.text(0.42, y, name, fontsize=7.2, color="#222222", va="center", ha="left")
-
-    # Configure axis appearance and save figure at high resolution
-    ax.set_xlim(-13.8, 23.8)
-    ax.set_ylim(-15.4, 10.4)
-    ax.set_aspect("equal")  # Maintain square aspect ratio for accurate schematic
-    ax.axis("off")  # Hide axis spines and ticks
-
-    # Save as high-resolution PNG image
-    plt.savefig(output_path, dpi=300, bbox_inches="tight")
-    # Display the map interactively in a window
-    plt.show()
-    plt.close(fig)
-
-
-def task2_statistics(edge_df):
-    """
-    Calculates network-wide statistics: total and average distances across all edges.
-    This is Task 2 of the coursework requirements.
-    
-    Args:
-        edge_df (pd.DataFrame): Edge dataframe with 'km' and 'miles' columns
-        
-    Returns:
-        pd.DataFrame: Summary statistics with metrics for both distance units
-                     - Total network length (sum of all edges)
-                     - Average distance per edge (mean of all edges)
-    """
-    total_km = round(edge_df["km"].sum(), 3)
-    total_miles = round(edge_df["miles"].sum(), 3)
-    avg_km = round(edge_df["km"].mean(), 3)
-    avg_miles = round(edge_df["miles"].mean(), 3)
-    return pd.DataFrame({
-        "metric": ["Total network length", "Average distance per edge"],
-        "km": [total_km, avg_km],
-        "miles": [total_miles, avg_miles]
-    })
-
-
-def line_distance_statistics(edge_df):
-    """
-    Calculates total distances for each MRT line independently.
-    Useful for comparing network coverage and line lengths across the system.
-    Additional Feature #3: Total distance per line
-    
-    Args:
-        edge_df (pd.DataFrame): Edge dataframe with 'line', 'km', and 'miles' columns
-        
-    Returns:
-        pd.DataFrame: Summary by line sorted by total kilometres (descending)
-                     Shows which lines are longest and most extensive
-    """
-    line_summary = (
-        edge_df.groupby("line", as_index=False)[["km", "miles"]]
-        .sum()
-        .sort_values("km", ascending=False)
-        .reset_index(drop=True)
-    )
-    line_summary["km"] = line_summary["km"].round(3)
-    line_summary["miles"] = line_summary["miles"].round(3)
-    return line_summary
-
-
-def normalise_station_name(user_text, valid_stations):
-    """
-    Normalizes user input to match valid station names.
-    Handles case-insensitivity and extra whitespace automatically.
-    
-    Args:
-        user_text (str): Raw user input for station name
-        valid_stations (list): List of correctly formatted station names
-        
-    Returns:
-        str or None: Matched station name if found (with proper formatting),
-                    None if no match in valid_stations
-    """
-    # Normalize input: trim whitespace and convert to lowercase
-    cleaned = " ".join(user_text.strip().split()).lower()
-    # Create case-insensitive lookup dictionary
-    station_lookup = {station.lower(): station for station in valid_stations}
-    return station_lookup.get(cleaned)
-
-
-def choose_station(prompt_text, valid_stations):
-    """
-    Interactive function to prompt and validate station selection.
-    Continues prompting until user enters a valid station name.
-    
-    Args:
-        prompt_text (str): Question/prompt to display to user
-        valid_stations (list): List of valid station names for validation
-        
-    Returns:
-        str: Validated station name (with correct formatting from valid_stations)
-    """
-    while True:
-        user_value = input(prompt_text).strip()
-        # Normalize input and check against valid stations
-        station_name = normalise_station_name(user_value, valid_stations)
-        if station_name is not None:
-            return station_name
-        print("Station not found. Please choose a station from the displayed list.")
-
-
-def shortest_path_analysis(graph, distance_attr):
-    """
-    Calculates the shortest path between two user-selected stations using Dijkstra's algorithm.
-    Additional Feature #1: Shortest path computation between any two stations
-    
-    Args:
-        graph (nx.Graph): NetworkX graph with distance-weighted edges
-        distance_attr (str): Weight attribute for calculation ('km' or 'miles')
-        
-    Returns:
-        tuple: (start_station, end_station, path, total_distance) where:
-               - start_station (str): Starting point station name
-               - end_station (str): Destination station name
-               - path (list): List of station names from start to end (inclusive)
-               - total_distance (float): Total route distance in selected unit
-    """
-    # Get all stations in the graph
-    valid_stations = sorted(graph.nodes())
-    print("\nAVAILABLE STATIONS")
-    print(", ".join(valid_stations))
-
-    # Prompt user to select start and destination stations
-    start_station = choose_station("\nEnter the start station: ", valid_stations)
-    end_station = choose_station("Enter the destination station: ", valid_stations)
-
-    # Calculate shortest path using specified distance metric
-    path = nx.shortest_path(graph, source=start_station, target=end_station, weight=distance_attr)
-    total_distance = nx.shortest_path_length(graph, source=start_station, target=end_station, weight=distance_attr)
-    return start_station, end_station, path, round(float(total_distance), 3)
-
-
-def main():
-    """
-    Main orchestration function for the complete MRT network analysis system.
-    Coordinates all operations from data loading through visualization.
-    
-    Workflow:
-        1. User selects distance unit (km or miles)
-        2. Load station coordinates from CSV file
-        3. Build edge database and NetworkX graph
-        4. Generate Task 1: Network schematic map (task1_map.png)
-        5. Calculate Task 2: Network statistics (task2_summary.csv)
-        6. Additional Feature #3: Per-line statistics (line_distance_summary.csv)
-        7. Optional: Task 1 Additional Features #1 & #2:
-           - Shortest path calculation between stations
-           - Highlighted map showing the route (shortest_path_map.png)
-        
-    Output Files:
-        - task1_map.png: Network schematic with all stations and edges
-        - edge_distances.csv: Complete edge list with distances
-        - task2_summary.csv: Network-wide statistics (total and average)
-        - line_distance_summary.csv: Per-line distance breakdown
-        - shortest_path_map.png: Map with highlighted route (if selected)
-    """
-    # Step 1: Get user preference for distance units
-    distance_attr, unit_text = get_distance_choice()
-
-    # Step 2: Load station data and build graph
-    coordinates_path = "station_coordinates.csv"
-    station_df = pd.read_csv(coordinates_path)
-    edge_df = build_edge_dataframe(station_df)
-    graph = build_graph(edge_df)
-
-    # Validation: Ensure graph connectivity
-    if not nx.is_connected(graph):
-        raise ValueError("The generated graph is not connected.")
-
-    # Step 3: Generate Task 1 - Network visualization
-    draw_network(graph, edge_df, distance_attr, "task1_map.png")
-    edge_df.to_csv("edge_distances.csv", index=False)
-
-    # Step 4: Generate Task 2 - Network statistics
-    summary_df = task2_statistics(edge_df)
-    summary_df.to_csv("task2_summary.csv", index=False)
-
-    # Step 5: Generate Additional Feature #3 - Per-line statistics
-    line_summary_df = line_distance_statistics(edge_df)
-    line_summary_df.to_csv("line_distance_summary.csv", index=False)
-
-    # Display results to user
-    print("\nTASK 2 RESULTS")
-    print(summary_df.to_string(index=False))
-
-    print("\nADDITIONAL FEATURE - TOTAL DISTANCE PER LINE")
-    print(line_summary_df.to_string(index=False))
-
-    # Step 6: Optional - Calculate shortest path
-    print("\nDo you want to calculate a shortest path and highlight it on the map?")
-    print("1 - Yes")
-    print("2 - No")
-
-    while True:
-        route_choice = input("Enter 1 or 2: ").strip()
-        if route_choice in {"1", "2"}:
-            break
         print("Invalid input. Please enter 1 or 2.")
 
-    created_files = [
-        "task1_map.png",
-        "edge_distances.csv",
-        "task2_summary.csv",
-        "line_distance_summary.csv"
-    ]
 
-    # Step 7: If user chose yes, compute and visualize shortest path
-    if route_choice == "1":
-        # Additional Features #1 & #2: Shortest path with highlighting
-        start_station, end_station, path, total_distance = shortest_path_analysis(graph, distance_attr)
-        draw_network(
-            graph,
-            edge_df,
-            distance_attr,
-            "shortest_path_map.png",
-            highlighted_path=path
-        )
-        print("\nADDITIONAL FEATURE - SHORTEST PATH")
-        print(f"Start station: {start_station}")
-        print(f"Destination station: {end_station}")
-        print("Shortest route:")
-        print(" -> ".join(path))
-        print(f"Total route distance: {round(total_distance, 2)} {unit_text}")
-        created_files.append("shortest_path_map.png")
+# =====================================================================
+# MAIN
+# =====================================================================
 
-    # Summary of generated files
-    print("\nFiles created:")
-    for file_name in created_files:
-        print(f"- {file_name}")
+def main():
+    distance_attr, unit_text = get_distance_choice()
+
+    coord = load_coordinates("station_coordinates.csv")
+
+    # ── MAP 1 ────────────────────────────────────────────────────
+    map1_stations = list({s for info in MAP1_LINES.values()
+                          for s in info["stations"]})
+    pos1 = project_positions(coord, map1_stations, scale=8.0, min_dist=0.50)
+    G1   = build_graph(MAP1_LINES, coord)
+    draw_map(G1, pos1, MAP1_LINES,
+             distance_attr, unit_text,
+             title=f"Map 1 \u2013 Original Network  [{unit_text}]",
+             output_path="map1.png")
+
+    # ── MAP 2 ────────────────────────────────────────────────────
+    map2_stations = list({s for info in MAP2_LINES.values()
+                          for s in info["stations"]})
+    pos2 = project_positions(coord, map2_stations, scale=20.0, min_dist=1.0)
+    G2   = build_graph(MAP2_LINES, coord)
+
+    if not nx.is_connected(G2):
+        raise ValueError("Map 2 graph is not connected.")
+
+    draw_map2(G2, pos2, MAP2_LINES,
+              distance_attr, unit_text,
+              title=f"Map 2 \u2013 Expanded Network  [{unit_text}]",
+              output_path="map2.png",
+              label_offsets=LABEL_OFFSETS_MAP2)
+
+    # ── TASK 2 ────────────────────────────────────────────────────
+    stats = task2_statistics(G2)
+    stats.to_csv("task2_summary.csv", index=False)
+
+    print("\n\u2500\u2500 TASK 2 RESULTS (Map 2) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500")
+    print(stats.to_string(index=False))
+    print("\nFiles created: map1.png  map2.png  task2_summary.csv")
 
 
 if __name__ == "__main__":
